@@ -1,121 +1,165 @@
 import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
+import InputForm from './components/InputForm'
+import ResultDisplay from './components/ResultDisplay'
 import './App.css'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [result, setResult] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+
+  const handleExplain = async (url) => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const apiUrl =
+        import.meta.env.VITE_API_URL || 'http://localhost:5000'
+
+      const response = await fetch(`${apiUrl}/api/explain`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      setResult(data)
+    } catch (err) {
+      setError(err.message || 'Failed to analyze repository')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <div className="App">
+      <nav className="navbar">
+        <div className="brand">
+          <span className="brand-mark">RQ</span>
+          <span>Repo IQ</span>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+        <div className="nav-links">
+          <a href="#features">Capabilities</a>
+          <a href="https://github.com" target="_blank" rel="noreferrer">
+            GitHub ↗
+          </a>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      </nav>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      <main>
+        {!result && (
+          <section className="hero">
+            <div className="eyebrow">
+              <span className="status-dot"></span>
+              REPOSITORY INTELLIGENCE
+            </div>
+
+            <h1>
+              Understand a repository
+              <br />
+              <span>without reading it line by line.</span>
+            </h1>
+
+            <p className="hero-description">
+              Analyze a GitHub repository and get its architecture,
+              dependencies, setup instructions and technical context
+              in one place.
+            </p>
+
+            <InputForm
+              onSubmit={handleExplain}
+              isLoading={loading}
+            />
+
+            <div className="hero-note">
+              <span>PUBLIC REPOSITORIES</span>
+              <span>·</span>
+              <span>ARCHITECTURE</span>
+              <span>·</span>
+              <span>DEPENDENCIES</span>
+              <span>·</span>
+              <span>SETUP</span>
+            </div>
+
+            {error && (
+              <div className="error-box">
+                <strong>Analysis failed</strong>
+                <span>{error}</span>
+              </div>
+            )}
+          </section>
+        )}
+
+        {loading && (
+          <div className="analysis-state">
+            <div className="loader-line"></div>
+            <p>Reading repository structure...</p>
+          </div>
+        )}
+
+        {result && (
+          <section className="results-wrapper">
+            <button
+              className="back-button"
+              onClick={() => setResult(null)}
+            >
+              ← Analyze another repository
+            </button>
+
+            <ResultDisplay data={result} />
+          </section>
+        )}
+      </main>
+
+      {!result && (
+        <section id="features" className="capabilities">
+          <div className="capability">
+            <span className="capability-number">01</span>
+            <div>
+              <h3>Architecture</h3>
+              <p>
+                See how the repository is structured and how its
+                major parts interact.
+              </p>
+            </div>
+          </div>
+
+          <div className="capability">
+            <span className="capability-number">02</span>
+            <div>
+              <h3>Dependencies</h3>
+              <p>
+                Understand the libraries, frameworks and relationships
+                that power the project.
+              </p>
+            </div>
+          </div>
+
+          <div className="capability">
+            <span className="capability-number">03</span>
+            <div>
+              <h3>Setup</h3>
+              <p>
+                Get concise instructions for installing and running
+                the repository locally.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      <footer>
+        <span>REPO IQ</span>
+        <span>Repository intelligence for developers.</span>
+      </footer>
+    </div>
   )
 }
 
