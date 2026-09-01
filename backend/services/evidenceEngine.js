@@ -301,35 +301,79 @@ export function buildTechnologyEvidence(allTreePaths, packageJson = {}, keyFiles
   const depKeys = Object.keys(deps)
   const results = []
 
-  // Get raw package.json string from keyFiles for line-number extraction
-  const pkgFile = keyFiles.find(f => f.path === 'package.json' || f.path.endsWith('/package.json'))
-  const rawPkgContent = pkgFile?.content || ''
+  // Get raw package.json strings from all manifest files for line-number extraction
+  const pkgFiles = keyFiles.filter(f => f.path === 'package.json' || f.path.endsWith('/package.json'))
 
   for (const tech of TECHNOLOGY_CATALOG) {
     const matchedFiles = new Set()
     const evidenceReasons = []
+    
+    // Explicit evidence tracking
+    let hasDependency = false
+    let hasImport = false
+    let hasInitialization = false
+    let hasConfig = false
+    
+    const evidenceChecklist = []
 
     // 1. Check package manifest (package.json)
     const matchedPkg = depKeys.find(pkgName => tech.packages.includes(pkgName))
     if (matchedPkg) {
-      matchedFiles.add('package.json')
-      const lineInfo = findLineNumbers(rawPkgContent, `"${matchedPkg}"`)
-      const lineStr = lineInfo ? ` (${lineInfo})` : ''
-      evidenceReasons.push(`Declared in package.json${lineStr} (${matchedPkg} v${deps[matchedPkg]})`)
+      hasDependency = true
+      // Find which package.json actually has it
+      for (const pFile of pkgFiles) {
+        const lineInfo = findLineNumbers(pFile.content, `"${matchedPkg}"`)
+        if (lineInfo) {
+          matchedFiles.add(pFile.path)
+          evidenceReasons.push(`Declared in ${pFile.path} (${lineInfo}) (${matchedPkg} v${deps[matchedPkg]})`)
+          evidenceChecklist.push({
+            type: 'dependency',
+            status: 'FOUND',
+            label: 'Dependency detected',
+            details: `${matchedPkg} declared in ${pFile.path}`
+          })
+          break
+        }
+      }
+      // Fallback if regex failed to find line
+      if (!evidenceChecklist.some(c => c.type === 'dependency' && c.status === 'FOUND')) {
+         matchedFiles.add('package.json')
+         evidenceReasons.push(`Declared in a package.json (${matchedPkg} v${deps[matchedPkg]})`)
+         evidenceChecklist.push({
+            type: 'dependency',
+            status: 'FOUND',
+            label: 'Dependency detected',
+            details: `${matchedPkg} declared in package.json`
+         })
+      }
     } else if (packageJson.name && tech.packages.includes(packageJson.name)) {
+      hasDependency = true
       matchedFiles.add('package.json')
       evidenceReasons.push(`Repository is the source implementation of ${tech.name} (name: "${packageJson.name}")`)
+      evidenceChecklist.push({
+        type: 'dependency',
+        status: 'FOUND',
+        label: 'Source implementation',
+        details: `Repository is the source of ${tech.name}`
+      })
     } else {
       // Check other manifests (requirements.txt, go.mod, pom.xml, etc.)
       for (const file of keyFiles) {
-        if (/requirements\.txt$|pyproject\.toml$|go\.mod$|pom\.xml$|build\.gradle$|composer\.json$|gemfile$/i.test(file.path)) {
+        if (/requirements\.txt$|pyproject\.toml$|go\.mod$|pom\.xml$|build\.gradle$|composer\.json$|gemfile$|package\.json$/i.test(file.path)) {
           for (const pkg of tech.packages) {
             const regex = new RegExp(`\\b${pkg}\\b`, 'i')
             if (regex.test(file.content)) {
+              hasDependency = true
               matchedFiles.add(file.path)
               const lineInfo = findLineNumbers(file.content, regex)
               const lineStr = lineInfo ? ` (${lineInfo})` : ''
               evidenceReasons.push(`Declared in ${file.path}${lineStr} (${pkg})`)
+              evidenceChecklist.push({
+                type: 'dependency',
+                status: 'FOUND',
+                label: 'Dependency detected',
+                details: `${pkg} declared in ${file.path}`
+              })
               break
             }
           }
@@ -337,58 +381,126 @@ export function buildTechnologyEvidence(allTreePaths, packageJson = {}, keyFiles
       }
     }
 
-    // 2. Check dedicated file patterns in repository tree
+    if (!hasDependency && tech.packages.length > 0) {
+      evidenceChecklist.push({
+        type: 'dependency',
+        status: 'NOT_FOUND',
+        label: 'Dependency not found',
+        details: `None of ${tech.packages.slice(0,3).join(', ')}... found in scanned manifests`
+      })
+    }
+
+    // 2. Check dedicated file patterns in repository tree (Configurations)
     for (const pattern of tech.filePatterns) {
       for (const filePath of allTreePaths) {
         if (pattern.test(filePath)) {
+          hasConfig = true
           matchedFiles.add(filePath)
+          evidenceChecklist.push({
+            type: 'configuration',
+            status: 'FOUND',
+            label: 'Configuration file detected',
+            details: `Found dedicated file: ${filePath}`
+          })
+          break // don't overwhelm checklist if multiple matches
         }
       }
     }
 
     // 3. Check imports and code patterns in fetched source files
     for (const file of keyFiles) {
-      let codeMatched = false
-
       // Check imports
       for (const importPattern of tech.imports) {
         if (importPattern.test(file.content)) {
+          hasImport = true
           matchedFiles.add(file.path)
           const lineInfo = findLineNumbers(file.content, importPattern)
           const lineStr = lineInfo ? ` (${lineInfo})` : ''
           evidenceReasons.push(`Imported in ${file.path}${lineStr}`)
-          codeMatched = true
+          evidenceChecklist.push({
+            type: 'import',
+            status: 'FOUND',
+            label: 'Source import detected',
+            details: `Imported in ${file.path}`
+          })
           break
         }
       }
 
-      // Check code signatures
-      if (!codeMatched && tech.codePatterns) {
-        for (const codePattern of tech.codePatterns) {
-          if (codePattern.test(file.content)) {
-            matchedFiles.add(file.path)
-            const lineInfo = findLineNumbers(file.content, codePattern)
-            const lineStr = lineInfo ? ` (${lineInfo})` : ''
-            evidenceReasons.push(`Usage pattern detected in ${file.path}${lineStr}`)
-            break
-          }
+      // Check code signatures / initialization
+      for (const codePattern of tech.codePatterns) {
+        if (codePattern.test(file.content)) {
+          hasInitialization = true
+          matchedFiles.add(file.path)
+          const lineInfo = findLineNumbers(file.content, codePattern)
+          const lineStr = lineInfo ? ` (${lineInfo})` : ''
+          evidenceReasons.push(`Usage pattern detected in ${file.path}${lineStr}`)
+          evidenceChecklist.push({
+            type: 'initialization',
+            status: 'FOUND',
+            label: 'Initialization pattern detected',
+            details: `Detected in ${file.path}`
+          })
+          break
         }
       }
     }
 
-    // Determine confidence: MUST have concrete evidence to be included
-    let confidence = null
-    const hasManifestEvidence = Array.from(matchedFiles).some(f => /package\.json|requirements\.txt|go\.mod|pom\.xml|pyproject\.toml/i.test(f))
-    
-    if (hasManifestEvidence && matchedFiles.size > 1) {
-      confidence = 'high'
-    } else if (hasManifestEvidence || (tech.packages.length === 0 && matchedFiles.size > 0)) {
-      confidence = 'high'
-    } else if (matchedFiles.size > 0) {
-      confidence = 'medium'
+    if (!hasImport && tech.imports.length > 0) {
+      evidenceChecklist.push({
+        type: 'import',
+        status: 'NOT_FOUND',
+        label: 'Source import not found',
+        details: 'No import statement detected in scanned source files'
+      })
     }
 
-    // Only include if evidence exists
+    if (!hasInitialization && tech.codePatterns.length > 0) {
+      evidenceChecklist.push({
+        type: 'initialization',
+        status: 'NOT_FOUND',
+        label: 'Initialization not found',
+        details: 'No initialization or usage pattern detected in scanned source files'
+      })
+    }
+
+    // Deduplicate checklist based on type+status to prevent UI bloat
+    const uniqueChecklistMap = new Map()
+    for (const check of evidenceChecklist) {
+      const key = `${check.type}:${check.status}`
+      if (!uniqueChecklistMap.has(key)) {
+        uniqueChecklistMap.set(key, check)
+      }
+    }
+    const finalChecklist = Array.from(uniqueChecklistMap.values())
+
+    // Determine confidence: MUST have concrete evidence to be included
+    let confidence = null
+    
+    // Ecosystem-aware confidence rules
+    if (tech.category === 'database') {
+      if (hasDependency && hasInitialization) {
+        confidence = 'high'
+      } else if (hasDependency && hasImport) {
+        confidence = 'medium'
+      } else if (hasDependency || hasInitialization || hasConfig) {
+        confidence = 'low'
+      }
+    } else if (tech.packages.length === 0) {
+      // Configuration-only techs (like Vercel, Docker)
+      if (hasConfig) confidence = 'high'
+    } else {
+      // General tools (React, Express, Tailwind)
+      if (hasDependency && (hasImport || hasInitialization || hasConfig)) {
+        confidence = 'high'
+      } else if (hasDependency) {
+        confidence = 'medium'
+      } else if (hasImport || hasInitialization || hasConfig) {
+        confidence = 'low'
+      }
+    }
+
+    // Strictly enforce that NO confidence is given just because of a generic filename
     if (confidence && matchedFiles.size > 0) {
       const fileList = Array.from(matchedFiles)
       const primaryReason = evidenceReasons.length > 0 
@@ -398,9 +510,10 @@ export function buildTechnologyEvidence(allTreePaths, packageJson = {}, keyFiles
       results.push({
         name: tech.name,
         category: tech.category,
-        confidence,
+        confidence: confidence.toUpperCase(),
         files: fileList,
-        reason: primaryReason
+        reason: primaryReason,
+        evidenceChecklist: finalChecklist
       })
     }
   }
@@ -780,9 +893,8 @@ export function buildDocumentationAudit(readmeContent, detectedTechs = [], allTr
   }
   const depKeys = Object.keys(deps)
 
-  // Get raw package.json content for line numbers
-  const pkgFile = keyFiles.find(f => f.path === 'package.json' || f.path.endsWith('/package.json'))
-  const rawPkgContent = pkgFile?.content || ''
+  // Get raw package.json contents from all manifests
+  const pkgFiles = keyFiles.filter(f => f.path === 'package.json' || f.path.endsWith('/package.json'))
 
   const auditResults = []
 
@@ -807,11 +919,21 @@ export function buildDocumentationAudit(readmeContent, detectedTechs = [], allTr
       // 1. Check Package Manifest
       const matchedPkg = depKeys.find(p => matchedCatalogTech.packages.includes(p))
       if (matchedPkg) {
-        const lineInfo = findLineNumbers(rawPkgContent, `"${matchedPkg}"`)
+        let foundPath = 'package.json'
+        let foundLine = undefined
+        for (const pFile of pkgFiles) {
+          const lineInfo = findLineNumbers(pFile.content, `"${matchedPkg}"`)
+          if (lineInfo) {
+             foundPath = pFile.path
+             foundLine = lineInfo
+             break
+          }
+        }
+        
         positiveEvidence.push({
           type: 'positive',
-          file: pkgFile?.path || 'package.json',
-          lines: lineInfo || undefined,
+          file: foundPath,
+          lines: foundLine,
           reason: `${matchedPkg} (v${deps[matchedPkg]}) declared in dependencies`
         })
       } else {
@@ -878,8 +1000,8 @@ export function buildDocumentationAudit(readmeContent, detectedTechs = [], allTr
       if (positiveEvidence.length === 0) {
         negativeEvidence.push({
           type: 'negative',
-          file: 'codebase',
-          reason: `No manifest dependencies, imports, or code signatures detected for ${matchedCatalogTech.name}`
+          file: 'Scanned Scope',
+          reason: `NOT FOUND IN SCANNED EVIDENCE. No manifest dependencies, imports, or code signatures detected for ${matchedCatalogTech.name} in the inspected scope.`
         })
       }
 
@@ -888,14 +1010,19 @@ export function buildDocumentationAudit(readmeContent, detectedTechs = [], allTr
       const searchSubject = rawClaim.subject
       const regex = new RegExp(searchSubject, 'i')
 
-      if (regex.test(rawPkgContent)) {
-        const lineInfo = findLineNumbers(rawPkgContent, regex)
-        positiveEvidence.push({
-          type: 'positive',
-          file: pkgFile?.path || 'package.json',
-          lines: lineInfo || undefined,
-          reason: `Mentioned in package.json manifest`
-        })
+      if (pkgFiles.length > 0) {
+        for (const pFile of pkgFiles) {
+          if (regex.test(pFile.content)) {
+            const lineInfo = findLineNumbers(pFile.content, regex)
+            positiveEvidence.push({
+              type: 'positive',
+              file: pFile.path,
+              lines: lineInfo || undefined,
+              reason: `Mentioned in ${pFile.path} manifest`
+            })
+            break
+          }
+        }
       }
 
       for (const file of keyFiles) {
@@ -913,8 +1040,8 @@ export function buildDocumentationAudit(readmeContent, detectedTechs = [], allTr
       if (positiveEvidence.length === 0) {
         negativeEvidence.push({
           type: 'negative',
-          file: 'codebase',
-          reason: `Keyword '${searchSubject}' not found in any scanned manifests or source files`
+          file: 'Scanned Scope',
+          reason: `NOT FOUND IN SCANNED EVIDENCE. Keyword '${searchSubject}' not found in any scanned manifests or source files in the inspected scope.`
         })
       }
     }
@@ -947,12 +1074,11 @@ export function buildDocumentationAudit(readmeContent, detectedTechs = [], allTr
       verdict = 'NOT_FOUND'
       confidence = 'HIGH'
 
-      // Check for contradictory alternative technologies
       if (rawClaim.category.toLowerCase().includes('database') && activeDatabases.length > 0 && !activeDatabases.some(db => db.toLowerCase().includes(rawClaim.subject.toLowerCase()))) {
         alternativeFound = `Repository utilizes ${activeDatabases.join(', ')} instead.`
-        summary = `Mentioned in README, but no evidence was detected in the codebase. ${alternativeFound}`
+        summary = `NOT FOUND IN SCANNED EVIDENCE. Mentioned in README, but no evidence was detected in the scanned scope. ${alternativeFound}`
       } else {
-        summary = `Mentioned in README documentation, but no supporting dependencies or code implementations were detected in the repository.`
+        summary = `NOT FOUND IN SCANNED EVIDENCE. Mentioned in README documentation, but no supporting dependencies or code implementations were detected in the inspected scope.`
       }
     }
 
@@ -990,12 +1116,12 @@ export function buildHealthAndDriftReport(scanResult = {}, detectedTechs = [], d
 
   let statusLabel = 'EXCELLENT ALIGNMENT'
   let statusGrade = 'A'
-  if (accuracyScore < 70) {
-    statusLabel = 'SIGNIFICANT DRIFT'
-    statusGrade = 'C'
-  } else if (accuracyScore < 90) {
-    statusLabel = 'MODERATE DRIFT'
-    statusGrade = 'B'
+  
+  const claimsRequiringReview = partialCount + notFoundCount
+  
+  if (claimsRequiringReview > 0) {
+    statusLabel = `${claimsRequiringReview} CLAIM${claimsRequiringReview > 1 ? 'S' : ''} REQUIRE REVIEW`
+    statusGrade = accuracyScore < 70 ? 'C' : 'B'
   }
 
   // Architectural Profile

@@ -40,8 +40,8 @@ export default function HealthReportSection({ healthReport, data }) {
     <section className="health-report-section">
       <div className="health-header-row">
         <div className="health-title-group">
-          <span className="health-badge">INTELLIGENCE REPORT · HEALTH & DRIFT</span>
-          <h2>Repository Health & Documentation Alignment</h2>
+          <span className="health-badge">INTELLIGENCE REPORT · DOCUMENTATION AUDIT</span>
+          <h2>Repository Intelligence · Documentation Audit</h2>
         </div>
 
         <button
@@ -58,12 +58,14 @@ export default function HealthReportSection({ healthReport, data }) {
         <div className="score-block">
           <div className={`score-circle ${getScoreColorClass(accuracyScore)}`}>
             <span className="score-number">{accuracyScore}%</span>
-            <span className="score-grade">GRADE {statusGrade}</span>
+            <span className="score-grade">ALIGNMENT</span>
           </div>
           <div className="score-text">
-            <span className="score-label">DOCUMENTATION ACCURACY SCORE</span>
+            <span className="score-label">README ↔ CODE ALIGNMENT</span>
             <h3 className="score-status">{statusLabel}</h3>
             <p className="score-desc">
+              Percentage of README claims verified against scanned repository evidence. This measures documentation accuracy, not code quality.
+              <br/><br/>
               {totalClaims > 0 
                 ? `${verifiedCount} of ${totalClaims} documented technical claims strictly confirmed by scanned repository code evidence.`
                 : 'No explicit technical claims detected in documentation.'}
@@ -178,7 +180,7 @@ export default function HealthReportSection({ healthReport, data }) {
       {/* DOCUMENTATION DRIFT ALERTS */}
       <div className="drift-alerts-container">
         <div className="drift-header">
-          <span className="drift-title">DOCUMENTATION DRIFT & SYNC STATUS ({driftItems?.length || 0})</span>
+          <span className="drift-title">{driftItems?.length || 0} CLAIMS REQUIRE REVIEW</span>
           <span className="drift-subtext">Differences detected between documentation assertions and code truth</span>
         </div>
 

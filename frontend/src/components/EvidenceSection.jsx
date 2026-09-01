@@ -274,12 +274,26 @@ export default function EvidenceSection({ evidence, onSelectFile }) {
                     <h4 className="tech-name">{tech.name}</h4>
                     <span className="tech-category-pill">{tech.category.toUpperCase()}</span>
                   </div>
-                  <div className={`confidence-badge ${tech.confidence}`}>
-                    ✓ {tech.confidence === 'high' ? 'HIGH CONFIDENCE' : 'VERIFIED'}
+                  <div className={`confidence-badge ${tech.confidence?.toLowerCase()}`}>
+                    {tech.confidence === 'HIGH' ? '✓ HIGH CONFIDENCE' : tech.confidence === 'MEDIUM' ? '⚠ MEDIUM CONFIDENCE' : '○ LOW CONFIDENCE'}
                   </div>
                 </div>
 
                 <p className="tech-reason">{tech.reason}</p>
+
+                {tech.evidenceChecklist && tech.evidenceChecklist.length > 0 && (
+                  <div className="evidence-checklist-block">
+                    {tech.evidenceChecklist.map((check, cIdx) => (
+                      <div key={cIdx} className={`checklist-item ${check.status === 'FOUND' ? 'found' : 'not-found'}`}>
+                        <span className="check-icon">{check.status === 'FOUND' ? '✓' : '○'}</span>
+                        <div className="check-text-group">
+                          <span className="check-label">{check.label}</span>
+                          {/* We don't render the details to keep it compact, but we could add it as title */}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 <div className="supporting-files-block">
                   <span className="supporting-files-label">SUPPORTING EVIDENCE:</span>

@@ -700,3 +700,9 @@
     align-items: flex-start;
   }
 }
+
+.evidence-checklist-block { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; background: #f8fafc; padding: 1rem; border-radius: 6px; }
+.checklist-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
+.checklist-item.found { color: #15803d; font-weight: 500; }
+.checklist-item.not-found { color: #64748b; }
+.check-icon { font-size: 1rem; }
