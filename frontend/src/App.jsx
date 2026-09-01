@@ -9,12 +9,12 @@ function App() {
   const [error, setError] = useState(null)
 
   const handleExplain = async (url) => {
-    setLoading(true)
+    setResult(null)
     setError(null)
+    setLoading(true)
 
     try {
-      const apiUrl =
-        import.meta.env.VITE_API_URL || 'http://localhost:5000'
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
       const response = await fetch(`${apiUrl}/api/explain`, {
         method: 'POST',
@@ -25,7 +25,18 @@ function App() {
       })
 
       if (!response.ok) {
-        throw new Error(`Server error: ${response.statusText}`)
+        let errorMessage = `Server error (${response.status})`
+        try {
+          const errData = await response.json()
+          if (errData?.error) {
+            errorMessage = errData.error
+          }
+        } catch {
+          if (response.statusText) {
+            errorMessage = `Server error: ${response.statusText}`
+          }
+        }
+        throw new Error(errorMessage)
       }
 
       const data = await response.json()
@@ -39,15 +50,25 @@ function App() {
 
   return (
     <div className="App">
+      {/* NAVBAR */}
       <nav className="navbar">
         <div className="brand">
           <span className="brand-mark">RQ</span>
-          <span>Repo IQ</span>
+          <span className="brand-title">REPO IQ</span>
+          <span className="brand-version">ENGINE v1.2</span>
         </div>
 
-        <div className="nav-links">
-          <a href="#features">Capabilities</a>
-          <a href="https://github.com" target="_blank" rel="noreferrer">
+        <div className="nav-meta">
+          <span className="engine-status">
+            <span className="status-dot"></span>
+            <span>EVIDENCE GROUNDED</span>
+          </span>
+          <a 
+            href="https://github.com" 
+            target="_blank" 
+            rel="noreferrer"
+            className="nav-gh-link"
+          >
             GitHub ↗
           </a>
         </div>
@@ -55,109 +76,204 @@ function App() {
 
       <main>
         {!result && (
-          <section className="hero">
-            <div className="eyebrow">
-              <span className="status-dot"></span>
-              REPOSITORY INTELLIGENCE
-            </div>
-
-            <h1>
-              Understand a repository
-              <br />
-              <span>without reading it line by line.</span>
-            </h1>
-
-            <p className="hero-description">
-              Analyze a GitHub repository and get its architecture,
-              dependencies, setup instructions and technical context
-              in one place.
-            </p>
-
-            <InputForm
-              onSubmit={handleExplain}
-              isLoading={loading}
-            />
-
-            <div className="hero-note">
-              <span>PUBLIC REPOSITORIES</span>
-              <span>·</span>
-              <span>ARCHITECTURE</span>
-              <span>·</span>
-              <span>DEPENDENCIES</span>
-              <span>·</span>
-              <span>SETUP</span>
-            </div>
-
-            {error && (
-              <div className="error-box">
-                <strong>Analysis failed</strong>
-                <span>{error}</span>
+          <div className="landing-container">
+            {/* HERO SECTION */}
+            <section className="hero">
+              <div className="eyebrow">
+                <span className="eyebrow-line"></span>
+                <span>REPOSITORY INTELLIGENCE</span>
               </div>
-            )}
-          </section>
-        )}
 
-        {loading && (
-          <div className="analysis-state">
-            <div className="loader-line"></div>
-            <p>Reading repository structure...</p>
+              <h1 className="hero-heading">
+                Understand a repository
+                <br />
+                <span className="hero-subheading">without reading it line by line.</span>
+              </h1>
+
+              <p className="hero-description">
+                REPO IQ traces architecture, dependencies and documentation claims back to evidence found in the actual codebase.
+              </p>
+
+              {/* COMMAND SEARCH BAR */}
+              <InputForm
+                onSubmit={handleExplain}
+                isLoading={loading}
+              />
+
+              {/* CAPABILITY METADATA STRIP */}
+              <div className="hero-meta-strip">
+                <span>PUBLIC REPOSITORIES</span>
+                <span className="meta-sep">/</span>
+                <span>CODE EVIDENCE</span>
+                <span className="meta-sep">/</span>
+                <span>ARCHITECTURE</span>
+                <span className="meta-sep">/</span>
+                <span>DOCUMENTATION AUDIT</span>
+                <span className="meta-sep">/</span>
+                <span>DRIFT DETECTION</span>
+              </div>
+
+              {error && (
+                <div className="error-box">
+                  <div className="error-header">
+                    <span className="error-icon">✕</span>
+                    <strong>ANALYSIS REJECTED OR FAILED</strong>
+                  </div>
+                  <p className="error-message">{error}</p>
+                </div>
+              )}
+            </section>
+
+            {/* HORIZONTAL EVIDENCE PIPELINE */}
+            <section className="pipeline-section">
+              <div className="section-label-bar">
+                <span className="sec-tag">INSPECTION PIPELINE</span>
+                <span className="sec-title">HOW REPO IQ AUDITS CODEBASES</span>
+              </div>
+
+              <div className="pipeline-steps-grid">
+                <div className="pipe-step">
+                  <div className="step-num">01</div>
+                  <h4>REPOSITORY SCAN</h4>
+                  <p>Recursively traverses GitHub tree topology in 1 single call to catalog all files and structure.</p>
+                </div>
+
+                <div className="pipe-arrow">→</div>
+
+                <div className="pipe-step">
+                  <div className="step-num">02</div>
+                  <h4>SOURCE INSPECTION</h4>
+                  <p>Safely fetches package manifests, entry points, schemas, routes, and core controllers.</p>
+                </div>
+
+                <div className="pipe-arrow">→</div>
+
+                <div className="pipe-step">
+                  <div className="step-num">03</div>
+                  <h4>CODE EVIDENCE</h4>
+                  <p>Extracts exact 1-indexed line numbers, imports, and AST-level component relationships.</p>
+                </div>
+
+                <div className="pipe-arrow">→</div>
+
+                <div className="pipe-step">
+                  <div className="step-num">04</div>
+                  <h4>CLAIM AUDIT</h4>
+                  <p>Cross-references README claims against actual code reality to identify matches and drift.</p>
+                </div>
+
+                <div className="pipe-arrow">→</div>
+
+                <div className="pipe-step">
+                  <div className="step-num">05</div>
+                  <h4>HEALTH & FIXES</h4>
+                  <p>Calculates documentation accuracy scores and generates deterministic README remediation diffs.</p>
+                </div>
+              </div>
+            </section>
+
+            {/* NEUTRAL VERIFICATION MODEL SECTION */}
+            <section className="forensic-showcase-section">
+              <div className="section-label-bar">
+                <span className="sec-tag">EVIDENCE VERIFICATION MODEL</span>
+                <span className="sec-title">CLAIM ➔ SEARCHED CODE EVIDENCE ➔ VERDICT</span>
+              </div>
+
+              <div className="forensic-card">
+                <div className="forensic-step claim-step">
+                  <div className="step-tag-row">
+                    <span className="step-tag">01 · EXTRACT CLAIMS</span>
+                    <span className="step-cat">DOCUMENTATION PARSER</span>
+                  </div>
+                  <div className="model-desc-box">
+                    <p className="model-desc-text">
+                      Technical claims (frameworks, databases, authentication, AI models, APIs, and cloud services) are parsed from the repository's <code>README.md</code>.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="forensic-connector">
+                  <span>↓ SEARCH & CORRELATE</span>
+                </div>
+
+                <div className="forensic-step evidence-step">
+                  <div className="step-tag-row">
+                    <span className="step-tag">02 · SEARCH CODEBASE EVIDENCE</span>
+                    <span className="step-cat">EVIDENCE ENGINE</span>
+                  </div>
+                  <div className="model-desc-box">
+                    <p className="model-desc-text">
+                      Claims are cross-referenced across scanned package manifests, configuration files, AST import trees, and line-level source code signatures.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="forensic-connector">
+                  <span>↓ COMPUTE VERDICT</span>
+                </div>
+
+                <div className="forensic-step verdict-step">
+                  <div className="step-tag-row">
+                    <span className="step-tag">03 · VERDICT & CONFIDENCE</span>
+                    <span className="step-cat">ACCURACY & DRIFT</span>
+                  </div>
+                  <div className="model-desc-box">
+                    <p className="model-desc-text">
+                      Each technical assertion receives a verified, partial, or drift verdict based strictly on inspected source code truth — with zero hallucinations.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
           </div>
         )}
 
+        {/* LOADING STATE */}
+        {loading && (
+          <div className="analysis-state">
+            <div className="loader-line"></div>
+            <div className="loader-meta">
+              <span className="loader-spinner"></span>
+              <p>Scanning tree topology and extracting code evidence...</p>
+            </div>
+          </div>
+        )}
+
+        {/* RESULT WORKSPACE */}
         {result && (
           <section className="results-wrapper">
-            <button
-              className="back-button"
-              onClick={() => setResult(null)}
-            >
-              ← Analyze another repository
-            </button>
+            <div className="results-top-nav">
+              <button
+                type="button"
+                className="back-button"
+                onClick={() => setResult(null)}
+              >
+                ← Analyze another repository
+              </button>
+
+              <div className="workspace-tag">
+                <span className="live-dot"></span>
+                <span>INVESTIGATION WORKSPACE</span>
+              </div>
+            </div>
 
             <ResultDisplay data={result} />
           </section>
         )}
       </main>
 
-      {!result && (
-        <section id="features" className="capabilities">
-          <div className="capability">
-            <span className="capability-number">01</span>
-            <div>
-              <h3>Architecture</h3>
-              <p>
-                See how the repository is structured and how its
-                major parts interact.
-              </p>
-            </div>
-          </div>
-
-          <div className="capability">
-            <span className="capability-number">02</span>
-            <div>
-              <h3>Dependencies</h3>
-              <p>
-                Understand the libraries, frameworks and relationships
-                that power the project.
-              </p>
-            </div>
-          </div>
-
-          <div className="capability">
-            <span className="capability-number">03</span>
-            <div>
-              <h3>Setup</h3>
-              <p>
-                Get concise instructions for installing and running
-                the repository locally.
-              </p>
-            </div>
-          </div>
-        </section>
-      )}
-
+      {/* FOOTER */}
       <footer>
-        <span>REPO IQ</span>
-        <span>Repository intelligence for developers.</span>
+        <div className="footer-left">
+          <span>REPO IQ</span>
+          <span className="footer-sep">/</span>
+          <span>EVIDENCE-FIRST CODEBASE AUDITING</span>
+          <span className="footer-sep">/</span>
+          <span>ZERO FABRICATED METRICS</span>
+        </div>
+        <div className="footer-right">
+          <span>ENGINE STATUS: OPERATIONAL</span>
+        </div>
       </footer>
     </div>
   )

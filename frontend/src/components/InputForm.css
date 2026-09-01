@@ -1,74 +1,196 @@
-.input-form {
-  margin-bottom: 40px;
-}
+/* InputForm.css - Command Bar Interface */
 
-.input-group {
+.command-input-container {
+  max-width: 860px;
+  width: 100%;
+  margin-top: 36px;
   display: flex;
-  gap: 10px;
-  margin-bottom: 15px;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.input-icon {
-  color: #667eea;
-  margin: auto 8px;
+.command-form {
+  width: 100%;
 }
 
-.input-field {
+.command-box {
+  display: flex;
+  align-items: center;
+  background: white;
+  border: 1px solid #cfcfca;
+  border-radius: 2px;
+  padding: 6px;
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 8px 24px rgba(0, 0, 0, 0.03);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.command-box:focus-within {
+  border-color: #171717;
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 8px 30px rgba(0, 0, 0, 0.06);
+}
+
+.command-prefix {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  color: #8c8c87;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  user-select: none;
+  border-right: 1px solid #eeeeea;
+}
+
+.prompt-symbol {
+  font-weight: 700;
+  color: #171717;
+  font-size: 14px;
+}
+
+.prompt-host {
+  color: #8c8c87;
+  font-size: 13px;
+}
+
+.command-field {
   flex: 1;
-  padding: 14px 16px;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-family: inherit;
-  transition: all 0.3s ease;
-}
-
-.input-field:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.input-field:disabled {
-  background: #f5f5f5;
-  cursor: not-allowed;
-}
-
-.submit-button {
-  padding: 14px 32px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  min-width: 0;
+  padding: 12px 14px;
   border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 1rem;
+  outline: none;
+  background: transparent;
+  color: #171717;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+
+.command-field::placeholder {
+  color: #a8a8a3;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.command-submit-btn {
+  border: none;
+  padding: 0 24px;
+  height: 44px;
+  background: #171717;
+  color: white;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  border-radius: 2px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background 0.15s ease, opacity 0.15s ease;
   white-space: nowrap;
 }
 
-.submit-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+.command-submit-btn:hover:not(:disabled) {
+  background: #333330;
 }
 
-.submit-button:disabled {
-  opacity: 0.7;
+.command-submit-btn:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
-.hint-text {
-  color: #999;
-  font-size: 0.85rem;
-  margin-top: 8px;
+.btn-loading-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-@media (max-width: 768px) {
-  .input-group {
+.btn-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spinBtn 0.7s linear infinite;
+}
+
+@keyframes spinBtn {
+  to { transform: rotate(360deg); }
+}
+
+/* QUICK SAMPLES ROW */
+.quick-samples-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.samples-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: #8c8c87;
+  letter-spacing: 0.1em;
+}
+
+.sample-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sample-btn {
+  background: #f7f7f5;
+  border: 1px solid #deded9;
+  padding: 4px 10px;
+  border-radius: 2px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.15s ease;
+}
+
+.sample-btn:hover:not(:disabled) {
+  background: white;
+  border-color: #171717;
+}
+
+.sample-btn code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: #171717;
+}
+
+.sample-tag {
+  font-size: 9px;
+  color: #777772;
+  background: #eeeeea;
+  padding: 1px 5px;
+  border-radius: 2px;
+}
+
+@media (max-width: 650px) {
+  .command-box {
     flex-direction: column;
+    align-items: stretch;
+    padding: 10px;
+    gap: 8px;
   }
-  
-  .submit-button {
+
+  .command-prefix {
+    border-right: none;
+    border-bottom: 1px solid #eeeeea;
+    padding: 0 0 8px 0;
+  }
+
+  .command-field {
+    padding: 8px 0;
+  }
+
+  .command-submit-btn {
     width: 100%;
   }
 }
