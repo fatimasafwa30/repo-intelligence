@@ -22,7 +22,12 @@
       "dest": "backend/server.js"
     },
     {
-      "handle": "filesystem"
+      "src": "/assets/(.*)",
+      "dest": "frontend/assets/$1"
+    },
+    {
+      "src": "/(.*\\.(?:js|css|svg|png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot|json))",
+      "dest": "frontend/$1"
     },
     {
       "src": "/(.*)",
