@@ -14,13 +14,13 @@ function App() {
     setLoading(true)
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+      const apiUrl = import.meta.env.VITE_API_URL !== undefined
+        ? import.meta.env.VITE_API_URL
+        : (import.meta.env.DEV ? 'http://localhost:5000' : '')
 
       const response = await fetch(`${apiUrl}/api/explain`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url }),
       })
 
@@ -38,11 +38,19 @@ function App() {
         }
         throw new Error(errorMessage)
       }
-
+      
       const data = await response.json()
       setResult(data)
     } catch (err) {
-      setError(err.message || 'Failed to analyze repository')
+      if (err.name === 'TypeError' && (err.message?.includes('fetch') || err.message?.includes('NetworkError'))) {
+        const apiUrl = import.meta.env.VITE_API_URL !== undefined
+          ? import.meta.env.VITE_API_URL
+          : (import.meta.env.DEV ? 'http://localhost:5000' : '')
+        const connTarget = apiUrl || 'the API server'
+        setError(`Cannot connect to backend server at ${connTarget}. Please ensure the backend server is running and reachable.`)
+      } else {
+        setError(err.message || 'Failed to analyze repository')
+      }
     } finally {
       setLoading(false)
     }
@@ -63,9 +71,9 @@ function App() {
             <span className="status-dot"></span>
             <span>EVIDENCE GROUNDED</span>
           </span>
-          <a 
-            href="https://github.com" 
-            target="_blank" 
+          <a
+            href="https://github.com"
+            target="_blank"
             rel="noreferrer"
             className="nav-gh-link"
           >
@@ -117,7 +125,7 @@ function App() {
                 <div className="error-box">
                   <div className="error-header">
                     <span className="error-icon">✕</span>
-                    <strong>ANALYSIS REJECTED OR FAILED</strong>
+                    <strong>ANALYSIS FAILED</strong>
                   </div>
                   <p className="error-message">{error}</p>
                 </div>

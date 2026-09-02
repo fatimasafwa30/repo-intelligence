@@ -1057,28 +1057,42 @@ export function buildDocumentationAudit(readmeContent, detectedTechs = [], allTr
     const uniquePositiveEvidence = Array.from(uniqueEvidenceMap.values())
 
     // 4. Calculate Verdict & Confidence
-    let verdict = 'NOT_FOUND'
+    let verdict = 'REQUIRES_REVIEW'
     let confidence = 'HIGH'
-    let summary = ''
+    let summary = 'NOT FOUND IN SCANNED EVIDENCE'
+    let interpretation = ''
     let alternativeFound = null
 
-    if (uniquePositiveEvidence.length >= 2) {
+    if (uniquePositiveEvidence.length >= 1) {
       verdict = 'VERIFIED'
       confidence = 'HIGH'
-      summary = `Direct code evidence supports this README claim through dependencies and source code execution.`
-    } else if (uniquePositiveEvidence.length === 1) {
-      verdict = 'VERIFIED'
-      confidence = 'HIGH'
-      summary = `Verified in repository codebase evidence.`
+      summary = uniquePositiveEvidence.map(e => e.reason).join('; ')
+      interpretation = 'Repository evidence supports this README claim.'
     } else {
-      verdict = 'NOT_FOUND'
-      confidence = 'HIGH'
-
-      if (rawClaim.category.toLowerCase().includes('database') && activeDatabases.length > 0 && !activeDatabases.some(db => db.toLowerCase().includes(rawClaim.subject.toLowerCase()))) {
-        alternativeFound = `Repository utilizes ${activeDatabases.join(', ')} instead.`
-        summary = `NOT FOUND IN SCANNED EVIDENCE. Mentioned in README, but no evidence was detected in the scanned scope. ${alternativeFound}`
+      confidence = 'MEDIUM'
+      const claimCategory = (rawClaim.category || '').toLowerCase()
+      
+      // Determine if there is conflicting evidence for CONTRADICTED
+      if (claimCategory.includes('database')) {
+        if (activeDatabases.length > 0 && !activeDatabases.some(db => db.toLowerCase().includes(rawClaim.subject.toLowerCase()))) {
+          verdict = 'CONTRADICTED'
+          alternativeFound = `${activeDatabases.join(', ')} client initialization and dependencies detected.`
+          summary = alternativeFound
+          interpretation = 'Repository evidence conflicts with this README claim.'
+        } else {
+          verdict = 'REQUIRES_REVIEW'
+          summary = 'NOT FOUND IN SCANNED EVIDENCE'
+          interpretation = 'The scan could not verify this database requirement from the inspected repository files. This does not prove the requirement is false.'
+        }
+      } else if (claimCategory.includes('runtime') || claimCategory.includes('setup')) {
+        verdict = 'REQUIRES_REVIEW'
+        summary = 'NOT FOUND IN SCANNED EVIDENCE'
+        interpretation = 'The scan could not verify this runtime/setup requirement from the inspected repository files. This does not prove the requirement is false.'
       } else {
-        summary = `NOT FOUND IN SCANNED EVIDENCE. Mentioned in README documentation, but no supporting dependencies or code implementations were detected in the inspected scope.`
+        // Fallback for frameworks, APIs, UI, AI models
+        verdict = 'REQUIRES_REVIEW'
+        summary = 'NOT FOUND IN SCANNED EVIDENCE'
+        interpretation = 'The scan could not verify this technology claim from the inspected repository files. This does not prove the claim is false.'
       }
     }
 
@@ -1089,6 +1103,7 @@ export function buildDocumentationAudit(readmeContent, detectedTechs = [], allTr
       verdict,
       confidence,
       summary,
+      interpretation,
       evidence: uniquePositiveEvidence,
       negativeEvidence,
       searchedEvidence: searchedLocations,
@@ -1106,18 +1121,18 @@ export function buildDocumentationAudit(readmeContent, detectedTechs = [], allTr
 export function buildHealthAndDriftReport(scanResult = {}, detectedTechs = [], documentationAudit = [], keyFiles = [], readmeContent = '') {
   const totalClaims = documentationAudit.length
   const verifiedCount = documentationAudit.filter(a => a.verdict === 'VERIFIED').length
-  const partialCount = documentationAudit.filter(a => a.verdict === 'PARTIAL').length
-  const notFoundCount = documentationAudit.filter(a => a.verdict === 'NOT_FOUND').length
+  const reviewCount = documentationAudit.filter(a => a.verdict === 'REQUIRES_REVIEW').length
+  const contradictedCount = documentationAudit.filter(a => a.verdict === 'CONTRADICTED').length
 
   // Calculate Accuracy Score (0 - 100%)
   const accuracyScore = totalClaims === 0 
     ? 100 
-    : Math.round(((verifiedCount + (0.5 * partialCount)) / totalClaims) * 100)
+    : Math.round(((verifiedCount + (0.5 * reviewCount)) / totalClaims) * 100)
 
   let statusLabel = 'EXCELLENT ALIGNMENT'
   let statusGrade = 'A'
   
-  const claimsRequiringReview = partialCount + notFoundCount
+  const claimsRequiringReview = reviewCount + contradictedCount
   
   if (claimsRequiringReview > 0) {
     statusLabel = `${claimsRequiringReview} CLAIM${claimsRequiringReview > 1 ? 'S' : ''} REQUIRE REVIEW`
@@ -1160,23 +1175,38 @@ export function buildHealthAndDriftReport(scanResult = {}, detectedTechs = [], d
 
   // 1. Check for claims not found or with contradictory reality
   for (const audit of documentationAudit) {
-    if (audit.verdict === 'NOT_FOUND') {
+    if (audit.verdict === 'CONTRADICTED') {
       driftItems.push({
-        type: 'mismatch',
+        type: 'contradicted',
         severity: 'high',
         claim: audit.claim,
         documented: `Documented as using ${audit.subject}`,
         reality: audit.alternativeFound || `No ${audit.subject} code evidence detected in scanned files`,
-        suggestion: `Update documentation to accurately reflect actual implementation (${audit.alternativeFound ? audit.alternativeFound : 'remove unverified claim'}).`
+        suggestion: `Update documentation to accurately reflect actual implementation (${audit.alternativeFound ? audit.alternativeFound : 'remove unverified claim'}).`,
+        interpretation: audit.interpretation,
+        summary: audit.summary
       })
-    } else if (audit.verdict === 'PARTIAL') {
+    } else if (audit.verdict === 'REQUIRES_REVIEW') {
       driftItems.push({
-        type: 'partial_drift',
+        type: 'requires_review',
         severity: 'medium',
         claim: audit.claim,
         documented: `Documented: "${audit.claim}"`,
-        reality: `Partial evidence found, but complete implementation could not be verified in codebase`,
-        suggestion: `Clarify current status or document implementation scope in README.`
+        reality: audit.summary,
+        suggestion: `Clarify current status or document implementation scope in README.`,
+        interpretation: audit.interpretation,
+        summary: audit.summary
+      })
+    } else if (audit.verdict === 'VERIFIED') {
+      driftItems.push({
+        type: 'verified',
+        severity: 'low',
+        claim: audit.claim,
+        documented: `Documented: "${audit.claim}"`,
+        reality: audit.summary,
+        suggestion: `No action needed.`,
+        interpretation: audit.interpretation,
+        summary: audit.summary
       })
     }
   }
@@ -1216,8 +1246,8 @@ export function buildHealthAndDriftReport(scanResult = {}, detectedTechs = [], d
     statusLabel,
     statusGrade,
     verifiedCount,
-    partialCount,
-    notFoundCount,
+    reviewCount,
+    contradictedCount,
     totalClaims,
     profile: {
       frontend: frontendTech,

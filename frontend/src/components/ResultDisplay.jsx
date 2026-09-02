@@ -3,10 +3,13 @@ import EvidenceSection from './EvidenceSection'
 import MermaidViewer from './MermaidViewer'
 import FileInspectorModal from './FileInspectorModal'
 import HealthReportSection from './HealthReportSection'
+import ForensicChat from './ForensicChat'
 import './ResultDisplay.css'
 
 export default function ResultDisplay({ data }) {
   const [selectedFile, setSelectedFile] = useState(null)
+  const [selectedLineRange, setSelectedLineRange] = useState(null)
+  const [isChatOpen, setIsChatOpen] = useState(false)
 
   if (!data) return null
 
@@ -41,15 +44,23 @@ export default function ResultDisplay({ data }) {
             )}
           </div>
 
-          <a 
-            href={url} 
-            target="_blank" 
-            rel="noreferrer"
-            className="repo-external-link"
-          >
-            <span>View on GitHub</span>
-            <span className="external-arrow">↗</span>
-          </a>
+          <div className="repo-header-actions">
+            <button 
+              className="ask-repo-btn" 
+              onClick={() => setIsChatOpen(true)}
+            >
+              <span className="fc-icon">🔍</span> Ask Repository
+            </button>
+            <a 
+              href={url} 
+              target="_blank" 
+              rel="noreferrer"
+              className="repo-external-link"
+            >
+              <span>View on GitHub</span>
+              <span className="external-arrow">↗</span>
+            </a>
+          </div>
         </div>
 
         {/* METADATA STRIP */}
@@ -191,9 +202,24 @@ export default function ResultDisplay({ data }) {
         <FileInspectorModal
           filePath={selectedFile}
           data={data}
-          onClose={() => setSelectedFile(null)}
+          lineRange={selectedLineRange}
+          onClose={() => {
+            setSelectedFile(null)
+            setSelectedLineRange(null)
+          }}
         />
       )}
+
+      {/* FORENSIC CHAT PANEL */}
+      <ForensicChat
+        url={url}
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        onSelectFile={(file, lines) => {
+          setSelectedFile(file)
+          setSelectedLineRange(lines)
+        }}
+      />
     </div>
   )
 }

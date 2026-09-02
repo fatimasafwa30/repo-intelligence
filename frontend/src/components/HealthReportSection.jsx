@@ -12,8 +12,8 @@ export default function HealthReportSection({ healthReport, data }) {
     statusLabel = 'EXCELLENT ALIGNMENT',
     statusGrade = 'A',
     verifiedCount = 0,
-    partialCount = 0,
-    notFoundCount = 0,
+    reviewCount = 0,
+    contradictedCount = 0,
     totalClaims = 0,
     profile = {},
     footprint = {},
@@ -81,20 +81,20 @@ export default function HealthReportSection({ healthReport, data }) {
           />
           <div 
             className="meter-fill partial" 
-            style={{ width: `${totalClaims ? (partialCount / totalClaims) * 100 : 0}%` }}
-            title={`Partial: ${partialCount}`}
+            style={{ width: `${totalClaims ? (reviewCount / totalClaims) * 100 : 0}%` }}
+            title={`Requires Review: ${reviewCount}`}
           />
           <div 
             className="meter-fill not-found" 
-            style={{ width: `${totalClaims ? (notFoundCount / totalClaims) * 100 : 0}%` }}
-            title={`Not Found: ${notFoundCount}`}
+            style={{ width: `${totalClaims ? (contradictedCount / totalClaims) * 100 : 0}%` }}
+            title={`Contradicted: ${contradictedCount}`}
           />
         </div>
 
         <div className="claims-stat-pills">
-          <span className="stat-pill verified">✓ {verifiedCount} Verified Claims</span>
-          <span className="stat-pill partial">⚠ {partialCount} Partial Matches</span>
-          <span className="stat-pill not-found">✕ {notFoundCount} Mismatches / Undocumented</span>
+          <span className="stat-pill verified">✓ {verifiedCount} Verified</span>
+          <span className="stat-pill partial">⚠ {reviewCount || 0} Requires Review</span>
+          <span className="stat-pill not-found">✕ {contradictedCount || 0} Contradicted</span>
         </div>
       </div>
 
@@ -177,40 +177,40 @@ export default function HealthReportSection({ healthReport, data }) {
         </div>
       </div>
 
-      {/* DOCUMENTATION DRIFT ALERTS */}
+      {/* DOCUMENTATION AUDIT RESULTS */}
       <div className="drift-alerts-container">
         <div className="drift-header">
-          <span className="drift-title">{driftItems?.length || 0} CLAIMS REQUIRE REVIEW</span>
-          <span className="drift-subtext">Differences detected between documentation assertions and code truth</span>
+          <span className="drift-title">DOCUMENTATION AUDIT RESULTS</span>
+          <span className="drift-subtext">Detailed breakdown of all audited README claims and their code evidence</span>
         </div>
 
         {driftItems && driftItems.length > 0 ? (
           <div className="drift-items-list">
             {driftItems.map((item, idx) => (
-              <div key={idx} className={`drift-card ${item.severity}`}>
+              <div key={idx} className={`drift-card ${item.type}`}>
                 <div className="drift-card-header">
                   <span className={`drift-type-badge ${item.type}`}>
-                    {item.type === 'mismatch' ? '⚠ MISMATCH' : item.type === 'undocumented_feature' ? '＋ UNDOCUMENTED' : '⚠ PARTIAL DRIFT'}
+                    {item.type === 'verified' ? '✓ VERIFIED' : item.type === 'requires_review' ? '⚠ REQUIRES REVIEW' : item.type === 'contradicted' ? '✕ CONTRADICTED' : '＋ UNDOCUMENTED'}
                   </span>
-                  <span className="drift-claim-title">{item.claim}</span>
                 </div>
 
                 <div className="drift-comparison">
                   <div className="comparison-side doc">
-                    <span className="side-label">README ASSERTION:</span>
-                    <p>{item.documented}</p>
+                    <span className="side-label">README CLAIM</span>
+                    <p>{item.claim}</p>
                   </div>
-                  <div className="comparison-arrow">→</div>
                   <div className="comparison-side reality">
-                    <span className="side-label">CODE REALITY:</span>
+                    <span className="side-label">EVIDENCE STATUS</span>
                     <p>{item.reality}</p>
                   </div>
                 </div>
 
-                <div className="drift-suggestion">
-                  <span className="sugg-label">RECOMMENDATION:</span>
-                  <span className="sugg-text">{item.suggestion}</span>
-                </div>
+                {item.interpretation && (
+                  <div className="drift-suggestion">
+                    <span className="sugg-label">INTERPRETATION</span>
+                    <span className="sugg-text">{item.interpretation}</span>
+                  </div>
+                )}
               </div>
             ))}
           </div>

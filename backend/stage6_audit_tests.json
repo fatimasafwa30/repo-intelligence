@@ -1,0 +1,32 @@
+[
+  {
+    "name": "1. MediLink-AI",
+    "passed": true,
+    "audit": []
+  },
+  {
+    "name": "2. HostelFix",
+    "passed": true,
+    "audit": []
+  },
+  {
+    "name": "3. Inaccurate README (Example: a generic repo)",
+    "passed": true,
+    "audit": []
+  },
+  {
+    "name": "4. Setup Requirements",
+    "passed": true,
+    "audit": []
+  },
+  {
+    "name": "5. Fast API",
+    "passed": true,
+    "audit": []
+  },
+  {
+    "name": "6. Vue.js Example",
+    "passed": true,
+    "audit": []
+  }
+]

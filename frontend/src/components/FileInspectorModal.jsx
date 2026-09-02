@@ -1,7 +1,7 @@
 import React from 'react'
 import './FileInspectorModal.css'
 
-export default function FileInspectorModal({ filePath, data, onClose }) {
+export default function FileInspectorModal({ filePath, data, lineRange, onClose }) {
   if (!filePath) return null
 
   const evidence = data?.evidence || {}
@@ -70,6 +70,22 @@ export default function FileInspectorModal({ filePath, data, onClose }) {
               <p className="purpose-text">{fileDetail.reason}</p>
             </div>
           </div>
+
+          {/* CITED RANGE (IF ANY) */}
+          {lineRange && (
+            <div className="inspector-block cited-range-block">
+              <span className="block-label">CITATION FOCUS</span>
+              <div className="block-content-box" style={{ borderLeftColor: '#3b5bdb', backgroundColor: '#f0f4ff' }}>
+                <p className="purpose-text" style={{ color: '#1c3d99', fontWeight: 600 }}>
+                  <span className="chip-icon" style={{marginRight: '6px'}}>📍</span> 
+                  Reference found in Lines {lineRange}
+                </p>
+                <p style={{fontSize: '11px', color: '#3b5bdb', marginTop: '6px', marginBottom: 0}}>
+                  (Raw source preview is not loaded for this citation)
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* SUPPORTED TECHNOLOGIES */}
           {supportedTechs.length > 0 && (
