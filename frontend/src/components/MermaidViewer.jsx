@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import mermaid from 'mermaid'
 
-// Initialize Mermaid with a clean developer tool theme
+// Initialize Mermaid with clean developer tool theme and error suppression
 mermaid.initialize({
   startOnLoad: false,
+  suppressErrorRendering: true,
   theme: 'neutral',
   securityLevel: 'loose',
   fontFamily: 'Inter, ui-monospace, SFMono-Regular, monospace',
@@ -19,12 +20,28 @@ mermaid.initialize({
 })
 
 /**
+ * Sanitizes raw diagram text from markdown or LLM output.
+ */
+function sanitizeDiagram(raw = '') {
+  if (!raw) return ''
+  let cleaned = raw
+    .replace(/```(?:mermaid)?\n?/gi, '')
+    .replace(/```/g, '')
+    .trim()
+
+  if (!cleaned.startsWith('graph') && !cleaned.startsWith('flowchart')) {
+    cleaned = 'graph TD\n' + cleaned
+  }
+  return cleaned
+}
+
+/**
  * Builds a clean, syntax-valid Mermaid graph definition from evidence relationships.
  */
 function buildMermaidFromRelationships(relationships = [], fallbackDiagram = '') {
   if (!relationships || relationships.length === 0) {
-    if (fallbackDiagram && fallbackDiagram.includes('graph')) {
-      return fallbackDiagram
+    if (fallbackDiagram && (fallbackDiagram.includes('graph') || fallbackDiagram.includes('flowchart'))) {
+      return sanitizeDiagram(fallbackDiagram)
     }
     return `graph TD\n    A["Client Application"] --> B["API / Service Layer"]`
   }
@@ -41,28 +58,29 @@ function buildMermaidFromRelationships(relationships = [], fallbackDiagram = '')
 
   const lines = ['graph TD']
   
-  // Limit to top 15 most meaningful relationships to keep diagram crisp & readable
+  // Limit to top 16 most meaningful relationships to keep diagram crisp & readable
   const activeRels = relationships.slice(0, 16)
 
   for (const rel of activeRels) {
     const fromId = getNodeId(rel.from)
     const toId = getNodeId(rel.to)
     
-    // Sanitize labels to prevent Mermaid syntax breaks
-    const cleanFrom = (rel.from || '').replace(/["\n\\]/g, '').trim()
-    const cleanTo = (rel.to || '').replace(/["\n\\]/g, '').trim()
-    const cleanRel = (rel.relationship || '').replace(/["\n\\]/g, '').trim()
+    // Strictly sanitize labels to prevent Mermaid syntax breaks
+    const cleanFrom = (rel.from || '').replace(/["[\]\n\\]/g, ' ').replace(/\s+/g, ' ').trim()
+    const cleanTo = (rel.to || '').replace(/["[\]\n\\]/g, ' ').replace(/\s+/g, ' ').trim()
+    const cleanRel = (rel.relationship || '').replace(/["[\]|()<>`\n\\]/g, ' ').replace(/\s+/g, ' ').trim()
 
     if (cleanFrom && cleanTo) {
       if (cleanRel) {
-        lines.push(`    ${fromId}["${cleanFrom}"] -->|"${cleanRel}"| ${toId}["${cleanTo}"]`)
+        // Valid Mermaid syntax uses |label| without internal quotes
+        lines.push(`    ${fromId}["${cleanFrom}"] -->|${cleanRel}| ${toId}["${cleanTo}"]`)
       } else {
         lines.push(`    ${fromId}["${cleanFrom}"] --> ${toId}["${cleanTo}"]`)
       }
     }
   }
 
-  return lines.join('\n')
+  return lines.length > 1 ? lines.join('\n') : `graph TD\n    A["Client Application"] --> B["API / Service Layer"]`
 }
 
 export default function MermaidViewer({ relationships = [], fallbackDiagram = '', title = 'Architecture Graph' }) {
@@ -75,22 +93,40 @@ export default function MermaidViewer({ relationships = [], fallbackDiagram = ''
     let isMounted = true
 
     async function renderChart() {
+      // Clean up any stray error elements injected into document.body by Mermaid
+      document.querySelectorAll('[id^="dmermaid_chart_"]').forEach(el => el.remove())
+
       try {
         setError(null)
         const diagramCode = useEvidenceGraph && relationships?.length > 0
           ? buildMermaidFromRelationships(relationships, fallbackDiagram)
-          : (fallbackDiagram || buildMermaidFromRelationships(relationships))
+          : (sanitizeDiagram(fallbackDiagram) || buildMermaidFromRelationships(relationships))
 
         const uniqueId = `mermaid_chart_${Math.random().toString(36).substring(2, 9)}`
-        const { svg } = await mermaid.render(uniqueId, diagramCode)
+        
+        let svg = ''
+        try {
+          const res = await mermaid.render(uniqueId, diagramCode)
+          svg = res.svg
+        } catch (firstErr) {
+          console.warn('Initial Mermaid render failed, attempting safe evidence fallback:', firstErr)
+          document.querySelectorAll('[id^="dmermaid_chart_"]').forEach(el => el.remove())
 
-        if (isMounted) {
+          // Safe fallback using structured evidence relationships
+          const safeFallback = buildMermaidFromRelationships(relationships)
+          const retryId = `mermaid_chart_${Math.random().toString(36).substring(2, 9)}`
+          const res2 = await mermaid.render(retryId, safeFallback)
+          svg = res2.svg
+        }
+
+        if (isMounted && svg) {
           setSvgContent(svg)
         }
       } catch (err) {
-        console.warn('Mermaid rendering fallback:', err)
+        console.warn('Mermaid rendering final fallback:', err)
+        document.querySelectorAll('[id^="dmermaid_chart_"]').forEach(el => el.remove())
         if (isMounted) {
-          setError('Could not render dynamic vector graph.')
+          setError('Architecture diagram preview is unavailable for this repository.')
         }
       }
     }
@@ -99,6 +135,7 @@ export default function MermaidViewer({ relationships = [], fallbackDiagram = ''
 
     return () => {
       isMounted = false
+      document.querySelectorAll('[id^="dmermaid_chart_"]').forEach(el => el.remove())
     }
   }, [relationships, fallbackDiagram, useEvidenceGraph])
 
@@ -139,7 +176,6 @@ export default function MermaidViewer({ relationships = [], fallbackDiagram = ''
         ) : error ? (
           <div className="mermaid-error">
             <p>{error}</p>
-            <pre className="mermaid-code-fallback">{fallbackDiagram || buildMermaidFromRelationships(relationships)}</pre>
           </div>
         ) : (
           <div className="mermaid-loading">
