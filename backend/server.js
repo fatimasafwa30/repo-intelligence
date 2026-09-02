@@ -11,6 +11,12 @@ import {
   sanitizeError
 } from './services/rateLimit.js'
 
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+// Try backend/.env then root .env
+dotenv.config({ path: path.resolve(__dirname, '.env') })
 dotenv.config()
 
 const app = express()
