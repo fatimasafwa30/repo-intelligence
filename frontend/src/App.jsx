@@ -72,7 +72,7 @@ function App() {
             <span>EVIDENCE GROUNDED</span>
           </span>
           <a
-            href="https://github.com"
+            href="https://github.com/fatimasafwa30/repo-intelligence"
             target="_blank"
             rel="noreferrer"
             className="nav-gh-link"
