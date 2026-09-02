@@ -61,11 +61,11 @@ export default function InputForm({ onSubmit, isLoading }) {
           <button
             type="button"
             className="sample-btn"
-            onClick={() => handleQuickSample('https://github.com/fatimasafwa30/MediLink-AI')}
+            onClick={() => handleQuickSample('https://github.com/facebook/react')}
             disabled={isLoading}
           >
-            <code>fatimasafwa30/MediLink-AI</code>
-            <span className="sample-tag">React + Supabase + Gemini</span>
+            <code>facebook/react</code>
+            <span className="sample-tag">React UI Library</span>
           </button>
           <button
             type="button"
